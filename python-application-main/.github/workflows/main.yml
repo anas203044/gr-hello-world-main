@@ -1,0 +1,50 @@
+name: Store Artifact in S3
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  Build:
+    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+  Test:
+    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+
+    steps:
+    - name: Install pytest
+      run: |
+        pip install pytest
+
+    - name: Run tests
+      run: |
+        pytest
+
+  Deploy:
+    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+
+    steps:
+    - name: Zip application.py
+      run: |
+        zip application.zip application.py
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+          role-to-assume: arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}
+          aws-region: us-east-1
+          role-session-name: GitHubActions
+
+    - name: Store artifact in S3
+      run: |
+        aws s3 cp application.zip s3://python-application/application.zip

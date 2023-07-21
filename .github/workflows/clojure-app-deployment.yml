@@ -1,0 +1,130 @@
+name: Build and Deploy to EKS
+
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: 'A glob pattern'
+        required: false
+        default: "*app/*.yml"
+      k8s_manifest_vars:
+        description: 'A map of template vars'
+        required: false
+        default: '{"appName":"clojureapp", "pullSecret":"regcred-npsaas", "replicas":2, "serviceType":"ClusterIP", "nodePort":"", "port":3000 }'
+      aws_region:
+        description: 'AWS region'
+        required: true
+        default: 'us-east-1'
+
+jobs:
+  Build:
+    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.GH_NONPROD_SAAS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: terraform-session
+          mask-aws-account-id: false
+   
+      - name: Checkout Repo
+        uses: actions/checkout@v3.5.3
+        
+      - name: Debug GITHUB_WORKSPACE
+        run: echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
+          
+      - name: Login to ECR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ vars.REGISTRY_URL }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: build clojure app docker image
+        id: docker_build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./clojure-app/Dockerfile
+          push: true
+          tags: ${{ vars.DOCKER_CLOJURE_IMAGE_TAG }}
+          build-args: |
+            AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}
+            AWS_SESSION_TOKEN=${{ env.AWS_SESSION_TOKEN }}
+
+  Deploy:
+    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+    needs: Build
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.GH_NONPROD_SAAS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Checkout Repo
+        uses: actions/checkout@v3.5.3
+          
+      - name: Debug GITHUB_WORKSPACE
+        run: echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
+ 
+      - name: Initialize and Validate Terraform
+        run: |
+          cd $GITHUB_WORKSPACE/clojure-app/k8s-terraform-deployment
+          terraform init
+          terraform validate
+          terraform plan -var "image_uri=${{ vars.DOCKER_CLOJURE_IMAGE_TAG }}" -var "pattern=${{ github.event.inputs.pattern }}" -var 'variables=${{ github.event.inputs.k8s_manifest_vars }}' -out=tfplan
+
+  terraform-apply:
+    needs: Deploy
+    runs-on: [ self-hosted, Linux, X64, nonprod-platform ]
+    permissions:
+      id-token: write
+      contents: read
+    environment: 'apply'
+    name: Terraform Apply
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.GH_NONPROD_ROLE_ARN}}
+          aws-region: ${{ vars.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Checkout Repo
+        uses: actions/checkout@v3.5.3
+          
+      - name: Debug GITHUB_WORKSPACE
+        run: echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
+
+      - name: Generate kubeconfig
+        run: |
+          aws eks list-clusters  
+          aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER_NAME }}
+
+      - name: Apply plan
+        run: |
+          cd $GITHUB_WORKSPACE/clojure-app/k8s-terraform-deployment
+          terraform init
+          terraform apply -var "image_uri=${{ vars.DOCKER_CLOJURE_IMAGE_TAG }}" -var "pattern=${{ github.event.inputs.pattern }}" -var 'variables=${{ github.event.inputs.k8s_manifest_vars }}'  -auto-approve
+          terraform destroy -var "image_uri=${{ vars.DOCKER_CLOJURE_IMAGE_TAG }}" -var "pattern=${{ github.event.inputs.pattern }}" -var 'variables=${{ github.event.inputs.k8s_manifest_vars }}'  -auto-approve
+
+
+
+
+       

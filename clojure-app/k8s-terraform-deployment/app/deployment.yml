@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${appName}-deployment
+  labels:
+    app: ${appName}
+spec:
+  replicas: ${replicas}
+  selector:
+    matchLabels:
+      app: ${appName}
+  template:
+    metadata:
+      labels:
+        app: ${appName}
+    spec:
+      containers:
+      - name: ${appName}
+        image: ${image_uri}
+        ports:
+        - containerPort: ${port}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: ${port}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /
+            port: ${port}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 15
+      imagePullSecrets:
+        - name: ${pullSecret}

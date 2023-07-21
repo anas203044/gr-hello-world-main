@@ -1,0 +1,12 @@
+# Use an official Python runtime as the base image
+FROM public.ecr.aws/lambda/python:3.9
+
+# Set the working directory inside the container
+
+
+# Copy the script and the JSON file to the working directory
+COPY python-application-main/application.py ${LAMBDA_TASK_ROOT}
+COPY python-application-main/example_1.json ${LAMBDA_TASK_ROOT}
+
+# Run the script when the container starts
+CMD ["application.handler"]

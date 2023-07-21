@@ -1,11 +1,8 @@
 name: .NET Core CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      aws_region:
-        description: 'AWS region'
-        required: true
+  push:
+    branches: "*"
 
 jobs:
   Build:

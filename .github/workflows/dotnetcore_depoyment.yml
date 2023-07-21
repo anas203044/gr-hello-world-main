@@ -34,7 +34,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
   Deploy:
-    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+    runs-on: [self-hosted, Linux, X64, nonprod-runner]
     needs: Build
 
     strategy:

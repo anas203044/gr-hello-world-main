@@ -24,7 +24,7 @@ jobs:
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: 6.0.20
+          dotnet-version: 6.0.315
       - name: Install dependencies
         run: |
           UBUNTU_VERSION=$(lsb_release -cs)
@@ -50,7 +50,7 @@ jobs:
 
     strategy:
       matrix:
-        dotnet-version: ['6.0.20', '7.0.0']
+        dotnet-version: ['6.0.315', '7.0.0']
 
     steps:
       - name: Checkout code

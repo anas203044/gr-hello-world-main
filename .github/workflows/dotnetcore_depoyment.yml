@@ -42,7 +42,9 @@ jobs:
           dotnet restore
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: |
+          cd dotnetcore-app
+          dotnet build --configuration Release --no-restore
 
   Deploy:
     runs-on: [self-hosted, Linux, X64, nonprod-runner]

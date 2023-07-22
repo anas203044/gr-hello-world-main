@@ -38,6 +38,7 @@ jobs:
         run: |
           ls -la
           pwd
+          cd dotnetcore-app
           dotnet restore
 
       - name: Build

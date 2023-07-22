@@ -71,4 +71,6 @@ jobs:
           dotnet restore
 
       - name: Test
-        run: dotnet test --no-build --verbosity normal
+        run: |
+          cd dotnetcore-app
+          dotnet test --no-build --verbosity normal

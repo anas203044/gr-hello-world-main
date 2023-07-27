@@ -19,7 +19,7 @@ on:
 
 jobs:
   Build:
-    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+    runs-on: [self-hosted, Linux, X64]
     permissions:
       id-token: write
       contents: read
@@ -56,7 +56,7 @@ jobs:
         run: docker push lambdaimage
         
   Deploy:
-    runs-on: [self-hosted, Linux, X64, nonprod-platform]
+    runs-on: [self-hosted, Linux, X64]
     needs: Build
     permissions:
       id-token: write

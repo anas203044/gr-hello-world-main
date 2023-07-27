@@ -39,6 +39,7 @@ jobs:
       - name: Debug GITHUB_WORKSPACE
         run: |
           whoami
+          sudo chmod 666 /var/run/docker.sock
           echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
           
       - name: Login to ECR

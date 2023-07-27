@@ -94,7 +94,9 @@ jobs:
         run: |
           git config --global user.name "${{ secrets.GIT_USER_NAME }}"
           git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
-
+          
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
             
       - name: Initialize and Validate Terraform
         run: |

@@ -1,0 +1,147 @@
+name: Deploy to lambda_containerized
+
+on:
+  workflow_dispatch:
+    inputs:
+      lambda_function_name:
+        description: 'lambda function name'
+        required: true
+      tag_value:
+        description: 'Tags to apply to the resources'
+        default: '{"BusinessContact":"cpe@rate.com", "BusinessOwner":"cpe", "CodeRepo":"https://github.com/guaranteed-rate/terraform-aws-app-modules", "Compliance":"none", "Criticality":"low", "Environment":"nonprod", "ManagedBy":"terraform", "Product":"terraform-aws-app-modules", "PublicFacing":"no", "RetirementDate":"2026-01-01", "StackId":"a88ceb67-59e2-7ef3-b9fe-7d6aabb56258", "TechContact":"cpe@rate.com",   "TechOwner":"cpe"}'
+        required: false
+      aws_region:
+        description: 'AWS region'
+        required: true
+      s3_bucket_name:
+        description: '"Name of the S3 bucket'
+        required: true
+
+jobs:
+  Build:
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::128410222145:role/GH_role
+          aws-region: eu-west-1
+          role-session-name: terraform-session
+          mask-aws-account-id: false
+   
+      - name: Checkout Repo
+        uses: actions/checkout@v3.5.3
+        
+      - name: Debug GITHUB_WORKSPACE
+        run: echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
+          
+      - name: Login to ECR
+        uses: docker/login-action@v2
+        with:
+          registry: 128410222145.dkr.ecr.eu-west-1.amazonaws.com/lambdatest
+          username: AKIAR3ZOYPZAWBOFFRUD
+          password: 2Cvyf1xY8C+f/Km3yL8Dvj2rkizYpqZIATSI+KhO
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Build and Tag Docker Image
+        run: docker build -t lambdaimage .
+
+      - name: Push  Docker Image
+        run: docker push lambdaimage
+        
+  Deploy:
+    runs-on: [self-hosted, Linux, X64]
+    needs: Build
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::128410222145:role/GH_role
+          aws-region: eu-west-1
+          
+      - name: Checkout Repo
+        uses: actions/checkout@v3.5.3
+          
+      - name: Debug GITHUB_WORKSPACE
+        run: echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
+        
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ secrets.GIT_USER_NAME }}"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+            
+      - name: Initialize and Validate Terraform
+        run: |
+            cd $GITHUB_WORKSPACE/lambda_containerized
+            terraform init
+            terraform validate
+            terraform plan -var "image_uri=lambdaimage" -var "name=${{ github.event.inputs.lambda_function_name }}" -var 'tags=${{ github.event.inputs.tag_value }}' -out=tfplan
+
+
+  terraform-apply:
+    needs: Deploy
+    runs-on: [ self-hosted, Linux, X64, nonprod-platform ]
+    permissions:
+      id-token: write
+      contents: read
+    environment: 'apply'
+    name: Terraform Apply 
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.GH_NONPROD_SAAS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          audience: sts.amazonaws.com
+          
+      - name: Checkout Repo
+        uses: actions/checkout@v3.5.3
+          
+      - name: Debug GITHUB_WORKSPACE
+        run: echo "GITHUB_WORKSPACE:$GITHUB_WORKSPACE"
+        
+      - name: Display current working directory
+        run: |
+          echo "Current working directory: $PWD"
+         
+      - name: List directory contents
+        run: |
+          ls -la
+          
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ secrets.GIT_USER_NAME }}"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+      - name: Apply plan
+        run: |
+          cd $GITHUB_WORKSPACE/lambda_containerized
+          terraform init
+          terraform apply -var "image_uri=${{ vars.DOCKER_LAMBDA_IMAGE_TAG }}" -var "name=${{ github.event.inputs.lambda_function_name }}" -var 'tags=${{ github.event.inputs.tag_value }}' -auto-approve
+          # terraform destroy -var "image_uri=${{ vars.DOCKER_LAMBDA_IMAGE_TAG }}" -var "name=${{ github.event.inputs.lambda_function_name }}" -var 'tags=${{ github.event.inputs.tag_value }}' -auto-approve

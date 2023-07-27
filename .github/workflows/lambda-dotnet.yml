@@ -55,6 +55,7 @@ jobs:
       - name: Build and Tag Docker Image
         run: |
           ls -la
+          cd dotnetcore-app
           docker build -t lambdaimage .
 
       - name: Push  Docker Image

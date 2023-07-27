@@ -56,10 +56,12 @@ jobs:
         run: |
           ls -la
           cd dotnetcore-app
-          docker build -t lambdaimage .
+          docker build -t lambdatest .
+          docker images
+          docker tag lambdatest:latest 128410222145.dkr.ecr.eu-west-1.amazonaws.com/lambdatest:latest
 
       - name: Push  Docker Image
-        run: docker push lambdaimage
+        run: docker push 128410222145.dkr.ecr.eu-west-1.amazonaws.com/lambdatest:latest
         
   Deploy:
     runs-on: [self-hosted, Linux, X64]

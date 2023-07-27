@@ -28,8 +28,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ vars.GH_NONPROD_SAAS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::128410222145:role/GH_role
+          aws-region: eu-west-1
           role-session-name: terraform-session
           mask-aws-account-id: false
    
@@ -42,18 +42,18 @@ jobs:
       - name: Login to ECR
         uses: docker/login-action@v2
         with:
-          registry: ${{ vars.REGISTRY_URL }}
-          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          registry: 128410222145.dkr.ecr.eu-west-1.amazonaws.com/lambdatest
+          username: AKIAR3ZOYPZAWBOFFRUD
+          password: 2Cvyf1xY8C+f/Km3yL8Dvj2rkizYpqZIATSI+KhO
 
       - name: Checkout repository
         uses: actions/checkout@v2
 
       - name: Build and Tag Docker Image
-        run: docker build -t ${{ vars.DOCKER_LAMBDA_IMAGE_TAG }} .
+        run: docker build -t lambdaimage .
 
       - name: Push  Docker Image
-        run: docker push ${{ vars.DOCKER_LAMBDA_IMAGE_TAG }}
+        run: docker push lambdaimage
         
   Deploy:
     runs-on: [self-hosted, Linux, X64, nonprod-platform]
@@ -66,8 +66,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ vars.GH_NONPROD_SAAS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::128410222145:role/GH_role
+          aws-region: eu-west-1
           
       - name: Checkout Repo
         uses: actions/checkout@v3.5.3
@@ -93,7 +93,7 @@ jobs:
             cd $GITHUB_WORKSPACE/lambda_containerized
             terraform init
             terraform validate
-            terraform plan -var "image_uri=${{ vars.DOCKER_LAMBDA_IMAGE_TAG }}" -var "name=${{ github.event.inputs.lambda_function_name }}" -var 'tags=${{ github.event.inputs.tag_value }}' -out=tfplan
+            terraform plan -var "image_uri=lambdaimage" -var "name=${{ github.event.inputs.lambda_function_name }}" -var 'tags=${{ github.event.inputs.tag_value }}' -out=tfplan
 
 
   terraform-apply:

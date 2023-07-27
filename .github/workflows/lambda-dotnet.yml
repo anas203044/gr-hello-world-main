@@ -46,8 +46,8 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: 128410222145.dkr.ecr.eu-west-1.amazonaws.com
-          username: AKIAR3ZOYPZAWBOFFRUD
-          password: 2Cvyf1xY8C+f/Km3yL8Dvj2rkizYpqZIATSI+KhO
+          username: AKIAR3ZOYPZA6IZ3PINL
+          password: L/8KHYDmYk1dKVT/7SOh9he0pmiBBYUL+hQd5Fw1
 
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -124,8 +124,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ vars.GH_NONPROD_SAAS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::128410222145:role/GH_role
+          aws-region: eu-west-1
           audience: sts.amazonaws.com
           
       - name: Checkout Repo
